@@ -14,7 +14,94 @@ if audio_file is not None:
     st.success("Audio uploaded successfully!")
 
     # Save uploaded file temporarily
-    with open("temp_audio." + audio_file.name.split(".")[-1], "wb") as f:
+    with open("temp_audio." + audio_file.name.split(".")[-1], "wb"import streamlit as st
+import whisper
+from difflib import SequenceMatcher, get_close_matches
+
+st.set_page_config(page_title="Pronunciation Feedback Tool")
+st.title("Pronunciation Feedback Tool")
+
+# -----------------------------
+# 1. Predefined target sentence
+# -----------------------------
+target_text = "I want to learn English effectively"
+st.markdown("**Target Sentence:**")
+st.write(f"*{target_text}*")  # always show target sentence
+
+# -----------------------------
+# 2. Audio Upload
+# -----------------------------
+audio_file = st.file_uploader("Upload your recording (WAV/MP3)", type=["wav", "mp3"])
+
+# Load Whisper model (tiny for speed)
+model = whisper.load_model("tiny")
+
+if audio_file is not None:
+    # Play uploaded audio
+    st.audio(audio_file, format='audio/wav')
+    
+    # Save uploaded audio temporarily
+    audio_path = "temp_audio." + audio_file.name.split(".")[-1]
+    with open(audio_path, "wb") as f:
+        f.write(audio_file.getbuffer())
+    
+    # -----------------------------
+    # 3. Transcribe Audio
+    # -----------------------------
+    result = model.transcribe(audio_path)
+    spoken_text = result["text"].lower().strip()
+    
+    # Optional: show transcription only if button clicked
+    if st.button("Show Transcription Hint"):
+        st.text_area("Transcribed Audio", value=spoken_text)
+    
+    # -----------------------------
+    # 4. Compare with Target
+    # -----------------------------
+    target_words = target_text.lower().split()
+    spoken_words = spoken_text.split()
+    
+    # Sequence-aware matching
+    correct_words = []
+    almost_correct_words = []
+    extra_words = []
+    missing_words = []
+    
+    for i, word in enumerate(target_words):
+        if i < len(spoken_words):
+            if word == spoken_words[i]:
+                correct_words.append(word)
+            elif get_close_matches(word, [spoken_words[i]], cutoff=0.7):
+                almost_correct_words.append(spoken_words[i])
+            else:
+                missing_words.append(word)
+        else:
+            missing_words.append(word)
+    
+    # Check for extra words
+    if len(spoken_words) > len(target_words):
+        extra_words = spoken_words[len(target_words):]
+    
+    # -----------------------------
+    # 5. Display Feedback
+    # -----------------------------
+    st.markdown("### Feedback:")
+    if correct_words:
+        st.markdown("✅ Correct: " + ", ".join(correct_words))
+    if almost_correct_words:
+        st.markdown("⚠️ Almost correct: " + ", ".join(almost_correct_words))
+    if missing_words:
+        st.markdown("❌ Missing: " + ", ".join(missing_words))
+    if extra_words:
+        st.markdown("⚠️ Extra: " + ", ".join(extra_words))
+    
+    # -----------------------------
+    # 6. Accuracy Calculation
+    # -----------------------------
+    total_words = len(target_words)
+    score = (len(correct_words) + 0.5 * len(almost_correct_words)) / total_words * 100
+    st.metric("Pronunciation Accuracy", f"{score:.1f}%")
+) as f:
         f.write(audio_file.getbuffer())
 
     # Transcribe audio
